@@ -5,8 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { createAuthHandler } from './auth.mjs'
 import { createDatabase } from './database.mjs'
 import { createApiHandler } from './api.mjs'
-import { loadEnv } from 'vite'
-Object.assign(process.env, { ...loadEnv('mysql', process.cwd(), ''), ...loadEnv('production', process.cwd(), ''), ...process.env })
+import './environment.mjs'
 
 if (!process.env.AUTH_USERNAME || !process.env.AUTH_PASSWORD) {
   console.error('Set AUTH_USERNAME and AUTH_PASSWORD before starting the production server.')
@@ -38,3 +37,5 @@ async function serve(req, res) {
   } catch { res.writeHead(503); res.end('Build the frontend before starting the server.') }
 }
 server.listen(Number(process.env.APP_PORT || 3000), process.env.APP_HOST || '127.0.0.1', () => { console.log(`Werewolf app: http://${process.env.APP_HOST || '127.0.0.1'}:${process.env.APP_PORT || 3000}`) })
+
+for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>{server.close(()=>{void db.pool.end().then(()=>process.exit(0))});setTimeout(()=>process.exit(1),10000).unref()})

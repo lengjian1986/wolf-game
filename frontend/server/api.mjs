@@ -26,6 +26,10 @@ export function createApiHandler(db) {
     const pathname = (req.url || '').split('?')[0]
     if (!pathname.startsWith('/api/')) return next()
     const reply = (status, body) => { res.writeHead(status, {'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}); res.end(JSON.stringify(body)) }
+    if(pathname==='/api/health'&&req.method==='GET'){
+      try{await db.ready();await db.pool.query('SELECT 1');return reply(200,{ok:true})}
+      catch{return reply(503,{ok:false})}
+    }
     if (!req.authUser) return reply(401,{message:'请先登录。'})
     const routes = [
       ['POST',/^\/api\/members$/,'addMember'],['PATCH',/^\/api\/members\/(\d+)\/card$/,'changeCard'],['POST',/^\/api\/members\/(\d+)\/use$/,'useMember'],['PATCH',/^\/api\/members\/(\d+)\/balance$/,'adjust'],['DELETE',/^\/api\/members\/(\d+)$/,'deleteMember'],

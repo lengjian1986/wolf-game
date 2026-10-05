@@ -11,3 +11,9 @@ server/.sessions.json
 server/.sessions.json.tmp
 *.sql
 *.sql.gz
+
+# Local deployment credentials and release archives
+.deployment/
+*.pem
+*.key
+*.tar.gz

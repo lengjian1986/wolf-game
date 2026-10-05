@@ -1,0 +1,14 @@
+*
+!frontend/
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/server/
+!frontend/server/**
+frontend/server/.sessions*
+!frontend/src/
+!frontend/src/utils/
+!frontend/src/utils/**
+!frontend/dist/
+!frontend/dist/**
+!deploy/
+!deploy/Dockerfile

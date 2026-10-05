@@ -1,0 +1,49 @@
+name: wolf-game
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: wolf-game-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:?}
+      MYSQL_USER: ${DB_USER:?}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?}
+    command: ["--innodb-buffer-pool-size=128M", "--max-connections=30", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    mem_limit: 512m
+    cpus: 0.5
+    volumes: ["mysql:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+  app:
+    image: wolf-game:${APP_VERSION:?}
+    container_name: wolf-game-app
+    restart: unless-stopped
+    depends_on:
+      mysql: {condition: service_healthy}
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:?}
+      DB_USER: ${DB_USER:?}
+      DB_PASSWORD: ${DB_PASSWORD:?}
+      AUTH_USERNAME: ${AUTH_USERNAME:?}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:?}
+      AUTH_SECURE_COOKIE: "true"
+      DB_MIGRATE_SESSIONS: "false"
+      NODE_OPTIONS: --max-old-space-size=128
+    ports: ["127.0.0.1:20223:3000"]
+    mem_limit: 256m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+volumes:
+  mysql:
+    name: wolf_game_mysql
