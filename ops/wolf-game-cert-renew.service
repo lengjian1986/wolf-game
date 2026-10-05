@@ -1,0 +1,8 @@
+[Unit]
+Description=Renew HTTPS certificate for wolf-game
+Wants=network-online.target
+After=network-online.target nginx.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/certbot renew --cert-name wolf.98.81.182.132.sslip.io --quiet --deploy-hook "/usr/bin/systemctl reload nginx"

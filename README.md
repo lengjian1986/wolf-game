@@ -7,3 +7,5 @@ Vue 3 + TypeScript 前端、Node.js API 和独立 MySQL 数据库，支持会员
 本地账号、数据库密码、登录会话、数据库数据、依赖和构建产物均不上传；部署时参考 [环境变量示例](frontend/.env.example) 配置。
 
 AWS 自动部署和线上入口见 [deploy/README.md](deploy/README.md)。
+
+线上 HTTPS 证书续期任务见 [ops/README.md](ops/README.md)。
