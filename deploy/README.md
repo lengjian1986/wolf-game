@@ -10,7 +10,7 @@ GitHub Actions 在 `main` 的应用或部署代码更新后运行，也可以手
 
 - Docker Compose 项目 `wolf-game`，容器 `wolf-game-app`、`wolf-game-mysql`。
 - MySQL 数据卷 `wolf_game_mysql`；数据库端口只在容器网络内开放。
-- MySQL 内存上限 512 MB，应用 256 MB，两者各限制 0.5 CPU。
+- MySQL 内存上限 512 MB，应用 256 MB，两者各限制 0.5 CPU。关闭 Performance Schema 性能采样以降低小实例的内存占用。
 - 服务器 `.env` 保存在 `/home/ec2-user/wolf-game/.env`，权限 600。包含独立数据库凭据和首次创建管理员的登录凭据，不放入发布包。
 - 每个版本保存到 `releases/<commit-sha>/`，Docker 镜像标签为对应提交 SHA。
 - `current-version` 保存当前成功发布版本，`previous-version` 保存上一次成功版本。
@@ -36,3 +36,5 @@ curl --fail http://127.0.0.1:20223/api/health
 需要回滚应用时，管理员选择 `previous-version` 中的 SHA，并使用那个版本的 Compose 文件执行 `up -d --no-deps --wait app`；检查成功后更新 `current-version`。应用回滚不会逆向迁移数据库。
 
 不要使用 `down -v` 清理部署，避免删除数据库。云端数据库和本机数据库是独立实例，发布代码不会持续同步两边的数据。线上使用以云端数据库为准。
+
+首次部署已将本机正式会员数据一次性迁移至云端，未迁移本地登录会话。部署测试数据已清理。
