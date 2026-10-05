@@ -1,0 +1,2 @@
+import type { IncomingMessage, ServerResponse } from 'node:http'
+export function createAuthHandler(config: { username: string; password: string; secure?: boolean; sessionFile?: string; sessionStore?: { get(key: string | undefined): Promise<{username: string} | undefined>; set(key: string, user: {username: string}): Promise<void>; delete(key: string | undefined): Promise<void> }; verifyCredentials?: (username: string, password: string) => Promise<boolean> }): (req: IncomingMessage, res: ServerResponse, next: () => void) => Promise<void>

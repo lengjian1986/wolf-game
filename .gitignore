@@ -1,0 +1,13 @@
+.DS_Store
+node_modules/
+dist/
+dist-ssr/
+*.log
+.env
+.env.*
+!.env.example
+*.local
+server/.sessions.json
+server/.sessions.json.tmp
+*.sql
+*.sql.gz
