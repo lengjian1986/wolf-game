@@ -2,19 +2,19 @@
 import { computed, reactive, ref, watch } from 'vue'
 import AppIcon from '../components/AppIcon.vue'
 import DeleteConfirm from '../components/DeleteConfirm.vue'
-import { badgeClass, referenceDate, useDataStore, type Game, type Seat, type Attendance } from '../stores/data'
-const store=useDataStore(),date=ref(referenceDate),selectedId=ref<number|null>(1),mobileDetails=ref(false),seatDraft=ref<Seat|null>(null),statusOpen=ref(false),notice=ref(''),createOpen=ref(false)
+import { badgeClass, referenceDate, localDateTime, useDataStore, type Game, type Seat, type Attendance } from '../stores/data'
+const store=useDataStore(),selectedId=ref<number|null>(null),seatDraft=ref<Seat|null>(null),statusOpen=ref(false),notice=ref(''),createOpen=ref(false)
 const gameToDelete=ref<Game|null>(null)
 const playerToDelete=ref<{gameId:number;number:number;name:string}|null>(null)
 const seatGameId=ref<number|null>(null)
 const seatGame=computed(()=>store.games.find(g=>g.id===seatGameId.value))
 const addingSeat=ref(false),seatMemberId=ref(''),legacyPlayerName=ref(''),seatError=ref('')
 const draft=reactive({date:referenceDate,start:'13:00',end:'15:30',capacity:12})
-const dayGames=computed(()=>store.games.filter(g=>g.date===date.value))
-const selected=computed(()=>dayGames.value.find(g=>g.id===selectedId.value)||dayGames.value[0])
-const weekday=computed(()=>new Date(`${date.value}T12:00:00`).toLocaleDateString('zh-CN',{weekday:'long'}))
-function changeDate(offset:number){const d=new Date(`${date.value}T12:00:00`);d.setDate(d.getDate()+offset);date.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;selectedId.value=null;mobileDetails.value=false}
-function openGame(g:Game){selectedId.value=g.id;mobileDetails.value=true}
+const sortedGames=computed(()=>[...store.games].sort((a,b)=>b.date.localeCompare(a.date)||b.start.localeCompare(a.start)||b.id-a.id))
+const selected=computed(()=>store.games.find(g=>g.id===selectedId.value))
+const weekday=computed(()=>selected.value?new Date(`${selected.value.date}T12:00:00`).toLocaleDateString('zh-CN',{weekday:'long'}):'')
+function openGame(g:Game){selectedId.value=g.id}
+function openCreate(){draft.date=localDateTime().slice(0,10);createOpen.value=true}
 const availableMembers=computed(()=>store.members.filter(m=>!(seatDraft.value?seatGame.value:selected.value)?.seats.some(s=>s.number!==seatDraft.value?.number&&(s.memberId===m.id||(!s.memberId&&s.name===m.name)))))
 function openSeat(s:Seat){
   seatGameId.value=selected.value?.id||null;addingSeat.value=false;seatDraft.value={...s};statusOpen.value=false;seatError.value=''
@@ -55,12 +55,12 @@ async function deletePlayer(){
 }
 async function createGame(){
   const existing=new Set(store.games.map(g=>g.id))
-  try{await store.createGame({...draft});const game=store.games.find(g=>!existing.has(g.id));date.value=draft.date;selectedId.value=game?.id||null;createOpen.value=false;toast('游戏场次已创建')}catch(e){toast(e instanceof Error?e.message:'创建失败')}
+  try{await store.createGame({...draft});const game=store.games.find(g=>!existing.has(g.id));selectedId.value=game?.id||null;createOpen.value=false;toast('游戏场次已创建')}catch(e){toast(e instanceof Error?e.message:'创建失败')}
 }
 async function deleteGame(){
   const game=gameToDelete.value
   if(!game)return
-  try{await store.deleteGame(game.id);gameToDelete.value=null;selectedId.value=null;mobileDetails.value=false;seatDraft.value=null;statusOpen.value=false;toast(`第${game.id}局游戏已删除`)}catch(e){toast(e instanceof Error?e.message:'删除失败')}
+  try{await store.deleteGame(game.id);gameToDelete.value=null;selectedId.value=null;seatDraft.value=null;statusOpen.value=false;toast(`第${game.id}局游戏已删除`)}catch(e){toast(e instanceof Error?e.message:'删除失败')}
 }
 function addSeat(){
   if(!selected.value||selected.value.seats.length>=selected.value.capacity)return
@@ -75,14 +75,13 @@ watch(()=>store.games.map(g=>g.id),()=>{if(seatDraft.value&&!seatGame.value){sea
 const attendanceOptions:Attendance[]=['准时','迟到','早退']
 </script>
 <template>
-  <div class="games-layout" :class="{'show-mobile-detail':mobileDetails}">
-    <section class="panel games-list-panel"><div class="section-heading"><div><h1>游戏记录</h1><p class="subtitle">按日期查看当天的游戏场次，点击查看每局的人员配置和出勤情况</p></div><button class="btn primary create-desktop" @click="draft.date=date;createOpen=true"><AppIcon name="plus" :size="18"/>新增游戏场次</button></div>
-      <div class="date-controls"><button class="btn square" aria-label="前一天" @click="changeDate(-1)"><AppIcon name="left"/></button><label class="game-date"><input v-model="date" type="date" aria-label="选择游戏日期" @change="selectedId=null;mobileDetails=false"/><span class="weekday">（{{weekday}}）</span></label><button class="btn today-button" @click="date=new Date().toLocaleDateString('en-CA');selectedId=null;mobileDetails=false">今天</button><button class="btn square next-day" aria-label="后一天" @click="changeDate(1)"><AppIcon name="right"/></button></div>
-      <div class="table-wrap desktop-games-table"><table class="data-table games-table"><thead><tr><th>场次</th><th>开始时间</th><th>结束时间</th><th>游戏人数</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="g in dayGames" :key="g.id" :class="{selected:selected?.id===g.id}"><td>第{{g.id}}局</td><td>{{g.start}}</td><td>{{g.end}}</td><td>{{g.seats.length}} / {{g.capacity}}</td><td><span :class="['badge',badgeClass(g.state)]">{{g.state}}</span></td><td><button class="btn" @click="openGame(g)">详情</button></td></tr></tbody></table></div>
-      <div class="mobile-game-list"><button v-for="g in dayGames" :key="g.id" class="game-card" :class="{running:g.state==='进行中'}" @click="openGame(g)"><div><strong>第{{g.id}}局</strong><p>{{g.start}} ～ {{g.end}}</p></div><span>{{g.seats.length}} / {{g.capacity}}</span><span :class="['badge',badgeClass(g.state)]">{{g.state}}</span><AppIcon name="right" :size="16"/></button></div>
-      <div v-if="!dayGames.length" class="empty-state"><AppIcon name="calendar" :size="34"/><h3>这一天还没有游戏场次</h3><p>新增一场游戏，开始记录店铺活动。</p></div><button class="btn primary mobile-create" @click="draft.date=date;createOpen=true"><AppIcon name="plus"/>新增游戏场次</button>
+  <div class="games-layout games-records-layout" :class="{'show-mobile-detail':selected}">
+    <section v-if="!selected" class="panel games-list-panel"><div class="section-heading"><div><h1>游戏记录</h1><p class="subtitle">全部游戏场次按时间从新到旧排列，点击查看人员配置和出勤情况</p></div><button class="btn primary create-desktop" @click="openCreate"><AppIcon name="plus" :size="18"/>新增游戏场次</button></div>
+      <div class="table-wrap desktop-games-table"><table class="data-table games-table"><thead><tr><th>场次</th><th>游戏日期</th><th>开始时间</th><th>结束时间</th><th>游戏人数</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="g in sortedGames" :key="g.id"><td>第{{g.id}}局</td><td>{{g.date}}</td><td>{{g.start}}</td><td>{{g.end}}</td><td>{{g.seats.length}} / {{g.capacity}}</td><td><span :class="['badge',badgeClass(g.state)]">{{g.state}}</span></td><td><button class="btn" @click="openGame(g)">详情</button></td></tr></tbody></table></div>
+      <div class="mobile-game-list"><button v-for="g in sortedGames" :key="g.id" class="game-card" :class="{running:g.state==='进行中'}" @click="openGame(g)"><div><strong>第{{g.id}}局</strong><p>{{g.date}}</p><p>{{g.start}} ～ {{g.end}}</p></div><span>{{g.seats.length}} / {{g.capacity}}</span><span :class="['badge',badgeClass(g.state)]">{{g.state}}</span><AppIcon name="right" :size="16"/></button></div>
+      <div v-if="!sortedGames.length" class="empty-state"><AppIcon name="calendar" :size="34"/><h3>还没有游戏记录</h3><p>新增一场游戏，开始记录店铺活动。</p></div><button class="btn primary mobile-create" @click="openCreate"><AppIcon name="plus"/>新增游戏场次</button>
     </section>
-    <section v-if="selected" class="panel game-detail-panel"><div class="section-heading"><h2><button class="icon-button" aria-label="返回游戏记录" @click="mobileDetails=false"><AppIcon name="left"/></button>第{{selected.id}}局 详情</h2><div class="game-heading-actions"><button class="btn edit-game-button" @click="selected.seats.length?openSeat(selected.seats[0]!):addSeat()"><AppIcon name="edit" :size="16"/>编辑</button><button class="btn danger-outline delete-game-button" @click="gameToDelete=selected"><AppIcon name="trash" :size="16"/>删除</button></div></div><div class="game-meta"><span><AppIcon name="calendar" :size="16"/>{{selected.date}}（{{weekday}}）</span><span><AppIcon name="clock" :size="16"/>{{selected.start}} ～ {{selected.end}}</span><span><AppIcon name="game" :size="16"/>{{selected.capacity}}人局 · 标准板子</span></div>
+    <section v-if="selected" class="panel game-detail-panel"><div class="section-heading"><h2><button class="icon-button" aria-label="返回游戏记录" @click="selectedId=null"><AppIcon name="left"/></button>第{{selected.id}}局 详情</h2><div class="game-heading-actions"><button class="btn edit-game-button" @click="selected.seats.length?openSeat(selected.seats[0]!):addSeat()"><AppIcon name="edit" :size="16"/>编辑</button><button class="btn danger-outline delete-game-button" @click="gameToDelete=selected"><AppIcon name="trash" :size="16"/>删除</button></div></div><div class="game-meta"><span><AppIcon name="calendar" :size="16"/>{{selected.date}}（{{weekday}}）</span><span><AppIcon name="clock" :size="16"/>{{selected.start}} ～ {{selected.end}}</span><span><AppIcon name="game" :size="16"/>{{selected.capacity}}人局 · 标准板子</span></div>
       <div class="table-wrap seat-table-wrap"><table class="data-table seat-table"><thead><tr><th>座位号</th><th>玩家昵称</th><th>身份</th><th>到场时间</th><th>状态</th><th class="seat-note">备注</th></tr></thead><tbody><tr v-for="s in selected.seats" :key="s.number" tabindex="0" role="button" :aria-label="`编辑 ${s.name} 的座位信息`" @click="openSeat(s)" @keydown.enter.prevent="openSeat(s)" @keydown.space.prevent="openSeat(s)"><td>{{s.number}}</td><td>{{s.name}}</td><td><span :class="['badge',badgeClass(s.role)]" :title="s.role">{{s.role || '-'}}</span></td><td>{{s.arrival}}</td><td><span :class="['badge',badgeClass(s.status)]">{{s.status}}</span></td><td class="seat-note secondary-text">{{s.note||'-'}}</td></tr></tbody></table></div><div v-if="!selected.seats.length" class="empty-state"><AppIcon name="members" :size="32"/><h3>暂无玩家</h3><p>为这场游戏添加第一位玩家。</p></div><div class="detail-table-footer"><span>点击玩家行可编辑座位信息</span><button v-if="selected.seats.length<selected.capacity" class="btn small" @click="addSeat"><AppIcon name="plus" :size="14"/>添加玩家</button></div>
     </section>
   </div>
